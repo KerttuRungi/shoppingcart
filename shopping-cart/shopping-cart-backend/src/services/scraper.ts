@@ -1,12 +1,7 @@
 import * as cheerio from 'cheerio'
+import { ScrapedProduct } from '../types/scrapedItem.js'
 
-export interface ScrapedProduct {
-  title: string
-  image: string
-  price: string
-  store: string
-  url: string
-}
+export type { ScrapedProduct }
 
 /// find html text
 function readText($: cheerio.CheerioAPI, selectors: string[]): string | undefined {
