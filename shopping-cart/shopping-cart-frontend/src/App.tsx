@@ -1,122 +1,86 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react'
+import ItemCard from './components/ItemCart'
+import type { Item } from './types'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [url, setUrl] = useState('')
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/items')
+      .then(r => r.json())
+      .then(setItems)
+  }, [])
+
+  const addItem = async () => {
+    if (!url) return
+    setLoading(true)
+    setError('')
+
+    try {
+      const scraped = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }).then(r => r.json())
+
+      if (scraped.error) throw new Error(scraped.error)
+
+      const saved = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scraped)
+      }).then(r => r.json())
+
+      setItems(prev => [saved, ...prev])
+      setUrl('')
+    } catch {
+      setError('Could not fetch product. Try another URL.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteItem = async (id: string) => {
+    await fetch(`/api/items/${id}`, { method: 'DELETE' })
+    setItems(prev => prev.filter(item => item.id !== id))
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <main className="max-w-2xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6"> My Shopping List</h1>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          className="flex-1 border rounded px-3 py-2 text-sm"
+          placeholder="Paste a product URL..."
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addItem()}
+        />
         <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={addItem}
+          disabled={loading}
+          className="bg-black text-white px-4 py-2 rounded text-sm disabled:opacity-50"
         >
-          Count is {count}
+          {loading ? 'Adding...' : 'Add'}
         </button>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
+      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <div className="flex flex-col gap-4">
+        {items.map(item => (
+          <ItemCard key={item.id} item={item} onDelete={deleteItem} />
+        ))}
+        {items.length === 0 && (
+          <p className="text-gray-400 text-sm text-center py-10">
+            No items yet — paste a product URL above
+          </p>
+        )}
+      </div>
+    </main>
   )
 }
-
-export default App
